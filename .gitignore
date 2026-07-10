@@ -1,0 +1,12 @@
+# Runtime files
+server.log
+translations.json
+__pycache__/
+*.pyc
+
+# Virtual environment
+venv/
+
+# OS files
+.DS_Store
+Thumbs.db

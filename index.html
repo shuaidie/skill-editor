@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>技能编辑器 | Skill Editor</title>
+<style>
+  :root {
+    --bg: #0d1117; --surface: #161b22; --border: #30363d;
+    --text: #c9d1d9; --muted: #8b949e; --accent: #58a6ff;
+    --green: #3fb950; --red: #f85149; --cat: #d2a8ff;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+  header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; align-items: center; gap: 12px; }
+  header h1 { font-size: 18px; font-weight: 600; }
+  header .badge { font-size: 11px; background: var(--accent); color: #000; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+  .back-btn { background: none; border: 1px solid var(--border); color: var(--text); padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+  .back-btn:hover { background: var(--border); }
+  .search-bar { padding: 16px 24px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; gap: 12px; align-items: center; }
+  .search-bar input { flex: 1; max-width: 400px; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 8px 14px; border-radius: 6px; font-size: 14px; outline: none; }
+  .search-bar input:focus { border-color: var(--accent); }
+  .search-bar input::placeholder { color: var(--muted); }
+  .new-skill-btn { background: var(--green); color: #000; border: none; padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+  .new-skill-btn:hover { opacity: 0.85; }
+  #skill-list-view { flex: 1; overflow-y: auto; padding: 16px 24px; }
+  .cat-group { margin-bottom: 20px; }
+  .cat-title { font-size: 13px; color: var(--cat); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
+  .skill-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin-bottom: 8px; cursor: pointer; transition: border-color 0.15s; }
+  .skill-card:hover { border-color: var(--accent); }
+  .skill-card .name { font-weight: 600; font-size: 15px; }
+  .skill-card .desc { color: var(--muted); font-size: 13px; margin-top: 4px; line-height: 1.5; max-height: 3em; overflow: hidden; }
+  .skill-card .desc .zh-label { color: var(--green); font-size: 11px; font-weight: 600; margin-right: 4px; }
+  .skill-card .desc .en-text { color: var(--muted); }
+.skill-card .actions { position: absolute; top: 10px; right: 12px; }
+.delete-btn { background: none; border: 1px solid var(--border); color: var(--muted); padding: 3px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; transition: all 0.15s; }
+.delete-btn:hover { border-color: var(--red); color: var(--red); background: rgba(248,81,73,0.1); }
+.skill-card { position: relative; }
+  #editor-view { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+  .editor-split { display: flex; flex: 1; overflow: hidden; }
+  .editor-pane { flex: 1; display: flex; flex-direction: column; border-right: 1px solid var(--border); min-width: 300px; }
+  .pane-header { padding: 10px 16px; background: var(--surface); border-bottom: 1px solid var(--border); font-size: 13px; font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
+  .editor-pane textarea { flex: 1; background: var(--bg); color: var(--text); border: none; padding: 16px; font-family: 'Cascadia Code', 'Fira Code', 'Menlo', monospace; font-size: 13px; line-height: 1.5; resize: none; outline: none; tab-size: 2; }
+  .save-btn { background: var(--green); color: #000; border: none; padding: 5px 14px; border-radius: 5px; font-size: 12px; font-weight: 600; cursor: pointer; }
+  .save-btn:hover { opacity: 0.85; }
+  .save-status { font-size: 11px; color: var(--muted); }
+  .chat-pane { flex: 1; display: flex; flex-direction: column; min-width: 300px; }
+  .chat-messages { flex: 1; overflow-y: auto; padding: 16px; }
+  .msg { margin-bottom: 14px; }
+  .msg .role { font-size: 11px; font-weight: 600; margin-bottom: 4px; text-transform: uppercase; }
+  .msg.user .role { color: var(--accent); }
+  .msg.assistant .role { color: var(--green); }
+  .msg .body { font-size: 14px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
+  .msg .body pre { background: var(--bg); padding: 10px; border-radius: 6px; margin: 8px 0; overflow-x: auto; }
+  .msg .body pre code { background: none; padding: 0; }
+  .chat-input-row { display: flex; border-top: 1px solid var(--border); padding: 10px; gap: 8px; background: var(--surface); }
+  .chat-input-row textarea { flex: 1; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 10px; font-size: 14px; resize: none; outline: none; font-family: inherit; min-height: 42px; max-height: 150px; }
+  .chat-input-row textarea:focus { border-color: var(--accent); }
+  .send-btn { background: var(--accent); color: #000; border: none; padding: 8px 18px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; align-self: flex-end; }
+  .send-btn:hover { opacity: 0.85; }
+  .send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .apply-btn { background: var(--green); color: #000; border: none; padding: 6px 14px; border-radius: 5px; font-size: 12px; font-weight: 600; cursor: pointer; }
+  .apply-btn:hover { opacity: 0.85; }
+  .msg-actions { display: flex; gap: 6px; margin-top: 6px; }
+  .typing { color: var(--muted); font-size: 12px; font-style: italic; }
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 100; justify-content: center; align-items: center; }
+  .modal-overlay.active { display: flex; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 28px; width: 480px; max-width: 90vw; max-height: 90vh; overflow-y: auto; }
+  .modal h2 { font-size: 18px; margin-bottom: 20px; }
+  .modal label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; margin-top: 14px; color: var(--muted); }
+  .modal input, .modal select, .modal textarea { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: 6px; font-size: 14px; outline: none; font-family: inherit; }
+  .modal input:focus, .modal select:focus, .modal textarea:focus { border-color: var(--accent); }
+  .modal textarea { min-height: 80px; resize: vertical; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 20px; justify-content: flex-end; }
+  .modal-cancel { background: var(--border); color: var(--text); border: none; padding: 8px 20px; border-radius: 6px; font-size: 14px; cursor: pointer; }
+  .modal-create { background: var(--green); color: #000; border: none; padding: 8px 20px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .modal-create:disabled { opacity: 0.4; cursor: not-allowed; }
+  .modal-error { color: var(--red); font-size: 13px; margin-top: 8px; display: none; }
+  .error-box { color: var(--red); padding: 20px; font-size: 16px; }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Hermes 技能编辑器</h1>
+  <span class="badge" id="skill-count">0</span>
+  <button class="back-btn" id="back-btn" style="display:none" onclick="showList()">&#8592; 返回列表</button>
+</header>
+
+<!-- SKILL LIST VIEW -->
+<div id="skill-list-view">
+  <div class="search-bar">
+    <input type="text" id="search" placeholder="搜索技能..." oninput="filterSkills()">
+    <button class="new-skill-btn" onclick="openNewModal()">+ 新建技能</button>
+  </div>
+  <div id="skill-cards"></div>
+</div>
+
+<!-- EDITOR VIEW -->
+<div id="editor-view">
+  <div class="editor-split">
+    <div class="editor-pane">
+      <div class="pane-header">
+        <span id="editor-title">SKILL.md</span>
+        <span style="display:flex;align-items:center;gap:8px">
+          <span class="save-status" id="save-status"></span>
+          <button class="save-btn" onclick="saveSkill()">保存</button>
+        </span>
+      </div>
+      <textarea id="skill-editor" spellcheck="false"></textarea>
+    </div>
+    <div class="chat-pane">
+      <div class="pane-header">LLM 助手 (llama-server)</div>
+      <div class="chat-messages" id="chat-messages"></div>
+      <div class="chat-input-row">
+        <textarea id="chat-input" placeholder="描述你想要做的修改..." rows="1" onkeydown="handleKey(event)"></textarea>
+        <button class="send-btn" id="send-btn" onclick="sendMessage()">发送</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- NEW SKILL MODAL -->
+<div class="modal-overlay" id="new-modal">
+  <div class="modal">
+    <h2>新建技能</h2>
+    <label>技能名称 (英文)</label>
+    <input id="new-name" placeholder="例如: my-awesome-skill">
+    <label>分类</label>
+    <select id="new-category"><option value="">-- 选择分类 --</option></select>
+    <label>描述 (中文或英文)</label>
+    <textarea id="new-desc" placeholder="简要描述这个技能的作用..."></textarea>
+    <label>初始内容 (可选)</label>
+    <textarea id="new-content" placeholder="留空则自动生成模板" style="min-height:120px;font-family:monospace;font-size:12px;"></textarea>
+    <div class="modal-error" id="new-error"></div>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeNewModal()">取消</button>
+      <button class="modal-create" id="create-btn" onclick="createSkill()">创建</button>
+    </div>
+  </div>
+</div>
+
+<!-- DELETE CONFIRM MODAL -->
+<div class="modal-overlay" id="delete-modal">
+  <div class="modal">
+    <h2>确认删除</h2>
+    <p style="font-size:14px;line-height:1.6;margin-bottom:8px;">确定要删除技能 <strong id="delete-skill-name"></strong> 吗？</p>
+    <p style="color:var(--red);font-size:13px;">此操作不可撤销，该技能的所有文件将被永久删除。</p>
+    <div class="modal-error" id="delete-error"></div>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeDeleteModal()">取消</button>
+      <button class="modal-create" id="delete-btn" style="background:var(--red);color:#fff;" onclick="confirmDelete()">删除</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var allSkills = [];
+var currentSkillFull = null;
+var chatHistory = [];
+var loading = false;
+var deleteTargetFull = null; // full_path of skill to delete
+
+function showError(msg) {
+  var container = document.getElementById('skill-cards');
+  if (container) {
+    container.innerHTML = '<div class="error-box">加载失败: ' + msg + '<br>请按 F12 打开控制台查看详情。</div>';
+  }
+}
+
+async function init() {
+  try {
+    var res = await fetch('/api/skills');
+    if (!res.ok) throw new Error('Skills API: ' + res.status);
+    allSkills = await res.json();
+    document.getElementById('skill-count').textContent = allSkills.length;
+    renderSkillList(allSkills);
+
+    var catsRes = await fetch('/api/categories');
+    if (!catsRes.ok) throw new Error('Categories API: ' + catsRes.status);
+    var cats = await catsRes.json();
+    var sel = document.getElementById('new-category');
+    for (var i = 0; i < cats.length; i++) {
+      var opt = document.createElement('option');
+      opt.value = cats[i];
+      opt.textContent = cats[i];
+      sel.appendChild(opt);
+    }
+  } catch (e) {
+    console.error('Init failed:', e);
+    showError(e.message);
+  }
+}
+
+// Lazy translation with Promise cache to prevent duplicate requests
+var translatedSet = {};
+var translatingPromises = {};
+
+async function ensureTranslated(skill) {
+  if (skill.description_zh || translatedSet[skill.full_path]) return;
+  if (translatingPromises[skill.full_path]) {
+    return translatingPromises[skill.full_path];
+  }
+  translatingPromises[skill.full_path] = (async function() {
+    try {
+      var res = await fetch('/api/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ full_path: skill.full_path, text: skill.description })
+      });
+      var data = await res.json();
+      skill.description_zh = data.translated;
+      translatedSet[skill.full_path] = true;
+    } catch (e) {
+      // Silently fail, but still mark as done so we don't retry forever
+    } finally {
+      delete translatingPromises[skill.full_path];
+    }
+  })();
+  return translatingPromises[skill.full_path];
+}
+
+function escapeHtml(str) {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function renderSkillList(skills) {
+  var container = document.getElementById('skill-cards');
+  container.innerHTML = '';
+  var groups = {};
+  for (var i = 0; i < skills.length; i++) {
+    var s = skills[i];
+    var cat = s.category || 'root';
+    if (!groups[cat]) groups[cat] = [];
+    groups[cat].push(s);
+  }
+  var sortedCats = Object.keys(groups).sort();
+  for (var ci = 0; ci < sortedCats.length; ci++) {
+    var cat = sortedCats[ci];
+    var list = groups[cat];
+    var div = document.createElement('div');
+    div.className = 'cat-group';
+    var titleDiv = document.createElement('div');
+    titleDiv.className = 'cat-title';
+    titleDiv.textContent = cat + ' (' + list.length + ')';
+    div.appendChild(titleDiv);
+
+    for (var si = 0; si < list.length; si++) {
+      var skill = list[si];
+      var card = document.createElement('div');
+      card.className = 'skill-card';
+
+      var nameDiv = document.createElement('div');
+      nameDiv.className = 'name';
+      nameDiv.textContent = skill.name;
+      card.appendChild(nameDiv);
+
+      // Delete button
+      (function(sk) {
+        var actionsDiv = document.createElement('div');
+        actionsDiv.className = 'actions';
+        var delBtn = document.createElement('button');
+        delBtn.className = 'delete-btn';
+        delBtn.textContent = '删除';
+        delBtn.onclick = function(e) {
+          e.stopPropagation();
+          openDeleteModal(sk);
+        };
+        actionsDiv.appendChild(delBtn);
+        card.appendChild(actionsDiv);
+      })(skill);
+
+      var descDiv = document.createElement('div');
+      descDiv.className = 'desc';
+      if (skill.description_zh) {
+        var zhSpan = document.createElement('span');
+        zhSpan.className = 'zh-label';
+        zhSpan.textContent = '中';
+        descDiv.appendChild(zhSpan);
+        descDiv.appendChild(document.createTextNode(skill.description_zh));
+      } else {
+        var enSpan = document.createElement('span');
+        enSpan.className = 'en-text';
+        enSpan.textContent = skill.description || '(no description)';
+        descDiv.appendChild(enSpan);
+      }
+      card.appendChild(descDiv);
+
+      (function(s) {
+        card.onclick = function() { openSkill(s); };
+      })(skill);
+
+      card.addEventListener('mouseenter', (function(sk, dd) {
+        return function() {
+          ensureTranslated(sk).then(function() {
+            if (sk.description_zh && dd) {
+              dd.innerHTML = '';
+              var z = document.createElement('span');
+              z.className = 'zh-label';
+              z.textContent = '中';
+              dd.appendChild(z);
+              dd.appendChild(document.createTextNode(sk.description_zh));
+            }
+          });
+        };
+      })(skill, descDiv), { once: true });
+
+      div.appendChild(card);
+    }
+    container.appendChild(div);
+  }
+}
+
+function filterSkills() {
+  var q = document.getElementById('search').value.toLowerCase();
+  var filtered = allSkills.filter(function(s) {
+    return s.name.toLowerCase().indexOf(q) >= 0 ||
+      (s.description || '').toLowerCase().indexOf(q) >= 0 ||
+      (s.description_zh || '').toLowerCase().indexOf(q) >= 0 ||
+      (s.category || '').toLowerCase().indexOf(q) >= 0;
+  });
+  renderSkillList(filtered);
+}
+
+async function openSkill(skill) {
+  currentSkillFull = skill.full_path;
+  var rel = skill.rel_path;
+  document.getElementById('skill-list-view').style.display = 'none';
+  document.getElementById('editor-view').style.display = 'flex';
+  document.getElementById('back-btn').style.display = '';
+  document.getElementById('editor-title').textContent = skill.name + '/SKILL.md';
+  var res = await fetch('/api/skill/' + rel);
+  var data = await res.json();
+  document.getElementById('skill-editor').value = data.content;
+  document.getElementById('save-status').textContent = '';
+  chatHistory = [];
+  document.getElementById('chat-messages').innerHTML = '<div class="typing">与 llama-server 对话来改进这个技能。LLM 会自动看到当前技能完整内容。</div>';
+}
+
+function showList() {
+  document.getElementById('skill-list-view').style.display = '';
+  document.getElementById('editor-view').style.display = 'none';
+  document.getElementById('back-btn').style.display = 'none';
+}
+
+async function saveSkill() {
+  var el = document.getElementById('save-status');
+  el.textContent = '保存中...';
+  try {
+    var res = await fetch('/api/skill/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: currentSkillFull, content: document.getElementById('skill-editor').value })
+    });
+    if (!res.ok) throw new Error(await res.text());
+    el.textContent = '已保存';
+    setTimeout(function() { el.textContent = ''; }, 2000);
+  } catch (e) { el.textContent = '错误: ' + e.message; }
+}
+
+function handleKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
+
+async function sendMessage() {
+  var input = document.getElementById('chat-input');
+  var text = input.value.trim();
+  if (!text || loading) return;
+  input.value = '';
+  input.style.height = '42px';
+  loading = true;
+  document.getElementById('send-btn').disabled = true;
+  chatHistory.push({ role: 'user', content: text });
+  appendMessage('user', text);
+  var typingEl = document.querySelector('.typing');
+  if (typingEl) typingEl.remove();
+  var loadDiv = document.createElement('div');
+  loadDiv.className = 'msg assistant';
+  loadDiv.id = 'loading-msg';
+  loadDiv.innerHTML = '<div class="role">助手</div><div class="body"><span class="typing">思考中...</span></div>';
+  document.getElementById('chat-messages').appendChild(loadDiv);
+  scrollChat();
+  try {
+    var res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: chatHistory, skill_path: currentSkillFull })
+    });
+    if (!res.ok) throw new Error(await res.text());
+    var data = await res.json();
+    chatHistory.push({ role: 'assistant', content: data.content });
+    appendMessage('assistant', data.content);
+    scrollChat();
+  } catch (e) {
+    var el = document.getElementById('loading-msg');
+    if (el) el.querySelector('.body').innerHTML = '<span style="color:var(--red)">错误: ' + e.message + '</span>';
+  }
+  loading = false;
+  document.getElementById('send-btn').disabled = false;
+}
+
+function appendMessage(role, text) {
+  var container = document.getElementById('chat-messages');
+  var div = document.createElement('div');
+  div.className = 'msg ' + role;
+
+  var roleDiv = document.createElement('div');
+  roleDiv.className = 'role';
+  roleDiv.textContent = role === 'user' ? '我' : '助手';
+  div.appendChild(roleDiv);
+
+  var bodyDiv = document.createElement('div');
+  bodyDiv.className = 'body';
+  bodyDiv.innerHTML = renderMarkdown(text);
+  div.appendChild(bodyDiv);
+
+  if (role === 'assistant') {
+    var codeBlock = extractCodeBlock(text);
+    if (codeBlock) {
+      var actionsDiv = document.createElement('div');
+      actionsDiv.className = 'msg-actions';
+      var btn = document.createElement('button');
+      btn.className = 'apply-btn';
+      btn.textContent = '应用到编辑器';
+      btn.setAttribute('data-content', codeBlock);
+      btn.onclick = function() {
+        document.getElementById('skill-editor').value = btn.getAttribute('data-content');
+        document.getElementById('save-status').textContent = '已应用 - 点击保存以写入磁盘';
+      };
+      actionsDiv.appendChild(btn);
+      div.appendChild(actionsDiv);
+    }
+  }
+
+  container.appendChild(div);
+}
+
+function extractCodeBlock(text) {
+  // Match ```markdown ... ``` or ``` ... ``` (with optional whitespace after backticks)
+  var m = text.match(/```markdown[\s\n]*([\s\S]*?)```/);
+  if (m) return m[1].trim();
+  m = text.match(/```[\s\n]*([\s\S]*?)```/);
+  if (m) return m[1].trim();
+  return null;
+}
+
+function scrollChat() {
+  var el = document.getElementById('chat-messages');
+  el.scrollTop = el.scrollHeight;
+}
+
+function renderMarkdown(text) {
+  var html = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  // Code blocks: ```lang ... ```
+  html = html.replace(/```(\w*)\n([\s\S]*?)```/g, function(m, lang, code) {
+    return '<pre><code>' + code.trim() + '</code></pre>';
+  });
+  // Inline code: `...`
+  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+  // Bold: **...**
+  html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  // Italic: *...* — exclude > to avoid matching across rendered HTML tags
+  html = html.replace(/([^*>])\*(.+?)\*/g, '$1<em>$2</em>');
+  // Newlines
+  html = html.replace(/\n/g, '<br>');
+  return html;
+}
+
+// New skill modal
+function openNewModal() {
+  document.getElementById('new-modal').classList.add('active');
+  document.getElementById('new-name').value = '';
+  document.getElementById('new-desc').value = '';
+  document.getElementById('new-content').value = '';
+  document.getElementById('new-error').style.display = 'none';
+}
+function closeNewModal() { document.getElementById('new-modal').classList.remove('active'); }
+
+async function createSkill() {
+  var btn = document.getElementById('create-btn');
+  var errEl = document.getElementById('new-error');
+  errEl.style.display = 'none';
+  var name = document.getElementById('new-name').value.trim();
+  var category = document.getElementById('new-category').value;
+  var description = document.getElementById('new-desc').value.trim();
+  var content = document.getElementById('new-content').value;
+  if (!name) { errEl.textContent = '请填写技能名称'; errEl.style.display = 'block'; return; }
+  btn.disabled = true;
+  btn.textContent = '创建中...';
+  try {
+    var res = await fetch('/api/skill/new', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: name, category: category, description: description, content: content })
+    });
+    var data = await res.json();
+    if (!res.ok) throw new Error(data.detail || await res.text());
+    closeNewModal();
+    var skillsRes = await fetch('/api/skills');
+    if (!skillsRes.ok) throw new Error('Skills API: ' + skillsRes.status);
+    allSkills = await skillsRes.json();
+    document.getElementById('skill-count').textContent = allSkills.length;
+    renderSkillList(allSkills);
+  } catch (e) { errEl.textContent = e.message; errEl.style.display = 'block'; }
+  btn.disabled = false;
+  btn.textContent = '创建';
+}
+
+// Delete skill
+function openDeleteModal(skill) {
+  deleteTargetFull = skill.full_path;
+  document.getElementById('delete-skill-name').textContent = skill.name;
+  document.getElementById('delete-error').style.display = 'none';
+  document.getElementById('delete-modal').classList.add('active');
+}
+function closeDeleteModal() {
+  document.getElementById('delete-modal').classList.remove('active');
+  deleteTargetFull = null;
+}
+
+async function confirmDelete() {
+  var btn = document.getElementById('delete-btn');
+  var errEl = document.getElementById('delete-error');
+  errEl.style.display = 'none';
+  if (!deleteTargetFull) return;
+  btn.disabled = true;
+  btn.textContent = '删除中...';
+  try {
+    var res = await fetch('/api/skill/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ full_path: deleteTargetFull })
+    });
+    var data = await res.json();
+    if (!res.ok) throw new Error(data.detail || await res.text());
+    closeDeleteModal();
+    // Clear translation cache for the deleted skill
+    delete translatedSet[deleteTargetFull];
+    // If we're in the editor, switch back to list view
+    if (document.getElementById('editor-view').style.display === 'flex') {
+      showList();
+    }
+    // Re-fetch and re-render
+    var skillsRes = await fetch('/api/skills');
+    if (!skillsRes.ok) throw new Error('Skills API: ' + skillsRes.status);
+    allSkills = await skillsRes.json();
+    document.getElementById('skill-count').textContent = allSkills.length;
+    renderSkillList(allSkills);
+  } catch (e) { errEl.textContent = e.message; errEl.style.display = 'block'; }
+  btn.disabled = false;
+  btn.textContent = '删除';
+}
+
+document.getElementById('chat-input').addEventListener('input', function() {
+  this.style.height = '42px';
+  this.style.height = Math.min(this.scrollHeight, 150) + 'px';
+});
+
+init();
+</script>
+</body>
+</html>
